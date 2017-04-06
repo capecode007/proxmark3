@@ -2,13 +2,11 @@
 #include "apps.h"
 #include "lfsampling.h"
 #include "pcf7931.h"
+#include "util.h"
 #include "string.h"
 
 #define T0_PCF 8 //period for the pcf7931 in us
 #define ALLOC 16
-
-#define abs(x) ( ((x)<0) ? -(x) : (x) )
-#define max(x,y) ( x<y ? y:x)
 
 int DemodPCF7931(uint8_t **outBlocks) {
 
@@ -72,7 +70,7 @@ int DemodPCF7931(uint8_t **outBlocks) {
 
 			// Switch depending on lc length:
 			// Tolerance is 1/8 of clock rate (arbitrary)
-			if (abs(lc-clock/4) < tolerance) {
+			if (ABS(lc-clock/4) < tolerance) {
 				// 16T0
 				if((i - pmc) == lc) { /* 16T0 was previous one */
 					/* It's a PMC ! */
@@ -84,7 +82,7 @@ int DemodPCF7931(uint8_t **outBlocks) {
 				else {
 					pmc = i;
 				}
-			} else if (abs(lc-clock/2) < tolerance) {
+			} else if (ABS(lc-clock/2) < tolerance) {
 				// 32TO
 				if((i - pmc) == lc) { /* 16T0 was previous one */
 					/* It's a PMC ! */
@@ -99,7 +97,7 @@ int DemodPCF7931(uint8_t **outBlocks) {
 				}
 				else
 					half_switch++;
-			} else if (abs(lc-clock) < tolerance) {
+			} else if (ABS(lc-clock) < tolerance) {
 				// 64TO
                 bits[bitidx++] = 1;
 			} else {
@@ -204,7 +202,7 @@ void ReadPCF7931() {
 						Blocks[0][ALLOC] = 1;
 						memcpy(Blocks[1], tmpBlocks[i+1], 16);
 						Blocks[1][ALLOC] = 1;
-						max_blocks = max((Blocks[1][14] & 0x7f), Blocks[1][15]) + 1;
+						max_blocks = MAX((Blocks[1][14] & 0x7f), Blocks[1][15]) + 1;
 						// Debug print
 						Dbprintf("(dbg) Max blocks: %d", max_blocks);
 						num_blocks = 2;

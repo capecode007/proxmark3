@@ -10,19 +10,18 @@
 // executes.
 //-----------------------------------------------------------------------------
 
+#include <stdarg.h>
+
 #include "usb_cdc.h"
 #include "cmd.h"
-
 #include "proxmark3.h"
 #include "apps.h"
 #include "util.h"
 #include "printf.h"
 #include "string.h"
-
-#include <stdarg.h>
-
 #include "legicrf.h"
-#include <hitag2.h>
+#include "hitag2.h"
+#include "hitagS.h"
 #include "lfsampling.h"
 #include "BigBuf.h"
 #include "mifareutil.h"
@@ -35,8 +34,6 @@
 #ifdef WITH_ISO14443a_StandAlone
  #include "iso14443a.h"
 #endif
-
-#define abs(x) ( ((x)<0) ? -(x) : (x) )
 
 //=============================================================================
 // A buffer where we can queue things up to be sent through the FPGA, for
@@ -181,13 +178,9 @@ int AvgAdc(int ch) // was static - merlok
 	return (a + 15) >> 5;
 }
 
-void MeasureAntennaTuning(void)
+void MeasureAntennaTuningLfOnly(int *vLf125, int *vLf134, int *peakf, int *peakv, uint8_t LF_Results[])
 {
-	uint8_t LF_Results[256];
-	int i, adcval = 0, peak = 0, peakv = 0, peakf = 0; //ptr = 0 
-	int vLf125 = 0, vLf134 = 0, vHf = 0;	// in mV
-
-	LED_B_ON();
+	int i, adcval = 0, peak = 0;
 
 /*
  * Sweeps the useful LF range of the proxmark from
@@ -197,38 +190,67 @@ void MeasureAntennaTuning(void)
  * the resonating frequency of your LF antenna
  * ( hopefully around 95 if it is tuned to 125kHz!)
  */
-  
-  	FpgaDownloadAndGo(FPGA_BITSTREAM_LF);
+
+	FpgaDownloadAndGo(FPGA_BITSTREAM_LF);
 	FpgaWriteConfWord(FPGA_MAJOR_MODE_LF_ADC | FPGA_LF_ADC_READER_FIELD);
 	for (i=255; i>=19; i--) {
-    WDT_HIT();
+		WDT_HIT();
 		FpgaSendCommand(FPGA_CMD_SET_DIVISOR, i);
 		SpinDelay(20);
 		adcval = ((MAX_ADC_LF_VOLTAGE * AvgAdc(ADC_CHAN_LF)) >> 10);
-		if (i==95) 	vLf125 = adcval; // voltage at 125Khz
-		if (i==89) 	vLf134 = adcval; // voltage at 134Khz
+		if (i==95) *vLf125 = adcval; // voltage at 125Khz
+		if (i==89) *vLf134 = adcval; // voltage at 134Khz
 
 		LF_Results[i] = adcval>>8; // scale int to fit in byte for graphing purposes
 		if(LF_Results[i] > peak) {
-			peakv = adcval;
+			*peakv = adcval;
 			peak = LF_Results[i];
-			peakf = i;
+			*peakf = i;
 			//ptr = i;
 		}
 	}
 
 	for (i=18; i >= 0; i--) LF_Results[i] = 0;
-	
-	LED_A_ON();
+
+	return;
+}
+
+void MeasureAntennaTuningHfOnly(int *vHf)
+{
 	// Let the FPGA drive the high-frequency antenna around 13.56 MHz.
-  	FpgaDownloadAndGo(FPGA_BITSTREAM_HF);
+	LED_A_ON();
+	FpgaDownloadAndGo(FPGA_BITSTREAM_HF);
 	FpgaWriteConfWord(FPGA_MAJOR_MODE_HF_READER_RX_XCORR);
 	SpinDelay(20);
-	vHf = (MAX_ADC_HF_VOLTAGE * AvgAdc(ADC_CHAN_HF)) >> 10;
+	*vHf = (MAX_ADC_HF_VOLTAGE * AvgAdc(ADC_CHAN_HF)) >> 10;
+	LED_A_OFF();
+
+	return;
+}
+
+void MeasureAntennaTuning(int mode)
+{
+	uint8_t LF_Results[256] = {0};
+	int peakv = 0, peakf = 0;
+	int vLf125 = 0, vLf134 = 0, vHf = 0; // in mV
+
+	LED_B_ON();
+
+	if (((mode & FLAG_TUNE_ALL) == FLAG_TUNE_ALL) && (FpgaGetCurrent() == FPGA_BITSTREAM_HF)) {
+		// Reverse "standard" order if HF already loaded, to avoid unnecessary swap.
+		MeasureAntennaTuningHfOnly(&vHf);
+		MeasureAntennaTuningLfOnly(&vLf125, &vLf134, &peakf, &peakv, LF_Results);
+	} else {
+		if (mode & FLAG_TUNE_LF) {
+			MeasureAntennaTuningLfOnly(&vLf125, &vLf134, &peakf, &peakv, LF_Results);
+		}
+		if (mode & FLAG_TUNE_HF) {
+			MeasureAntennaTuningHfOnly(&vHf);
+		}
+	}
 
 	cmd_send(CMD_MEASURED_ANTENNA_TUNING, vLf125 | (vLf134<<16), vHf, peakf | (peakv<<16), LF_Results, 256);
 	FpgaWriteConfWord(FPGA_MAJOR_MODE_OFF);
-	LED_A_OFF();
 	LED_B_OFF();
 	return;
 }
@@ -428,7 +450,7 @@ void StandAloneMode14a()
 						SpinDelay(300);
 					}
 				}
-				if (!iso14443a_select_card(uid, &hi14a_card[selected], &cuid))
+				if (!iso14443a_select_card(uid, &hi14a_card[selected], &cuid, true, 0))
 					continue;
 				else
 				{
@@ -841,7 +863,7 @@ void ListenReaderField(int limit)
 
 		if (limit != HF_ONLY) {
 			if(mode == 1) {
-				if (abs(lf_av - lf_baseline) > REPORT_CHANGE) 
+				if (ABS(lf_av - lf_baseline) > REPORT_CHANGE) 
 					LED_D_ON();
 				else
 					LED_D_OFF();
@@ -849,7 +871,7 @@ void ListenReaderField(int limit)
 
 			lf_av_new = AvgAdc(ADC_CHAN_LF);
 			// see if there's a significant change
-			if(abs(lf_av - lf_av_new) > REPORT_CHANGE) {
+			if(ABS(lf_av - lf_av_new) > REPORT_CHANGE) {
 				Dbprintf("LF 125/134kHz Field Change: %5dmV", (MAX_ADC_LF_VOLTAGE * lf_av_new) >> 10);
 				lf_av = lf_av_new;
 				if (lf_av > lf_max)
@@ -859,7 +881,7 @@ void ListenReaderField(int limit)
 
 		if (limit != LF_ONLY) {
 			if (mode == 1){
-				if (abs(hf_av - hf_baseline) > REPORT_CHANGE) 	
+				if (ABS(hf_av - hf_baseline) > REPORT_CHANGE) 	
 					LED_B_ON();
 				else
 					LED_B_OFF();
@@ -867,7 +889,7 @@ void ListenReaderField(int limit)
 
 			hf_av_new = AvgAdc(ADC_CHAN_HF);
 			// see if there's a significant change
-			if(abs(hf_av - hf_av_new) > REPORT_CHANGE) {
+			if(ABS(hf_av - hf_av_new) > REPORT_CHANGE) {
 				Dbprintf("HF 13.56MHz Field Change: %5dmV", (MAX_ADC_HF_VOLTAGE * hf_av_new) >> 10);
 				hf_av = hf_av_new;
 				if (hf_av > hf_max)
@@ -993,16 +1015,19 @@ void UsbPacketReceived(uint8_t *packet, int len)
 			WritePCF7931(c->d.asBytes[0],c->d.asBytes[1],c->d.asBytes[2],c->d.asBytes[3],c->d.asBytes[4],c->d.asBytes[5],c->d.asBytes[6], c->d.asBytes[9], c->d.asBytes[7]-128,c->d.asBytes[8]-128, c->arg[0], c->arg[1], c->arg[2]);
 			break;
 		case CMD_EM4X_READ_WORD:
-			EM4xReadWord(c->arg[1], c->arg[2],c->d.asBytes[0]);
+			EM4xReadWord(c->arg[0], c->arg[1],c->arg[2]);
 			break;
 		case CMD_EM4X_WRITE_WORD:
-			EM4xWriteWord(c->arg[0], c->arg[1], c->arg[2], c->d.asBytes[0]);
+			EM4xWriteWord(c->arg[0], c->arg[1], c->arg[2]);
 			break;
 		case CMD_AWID_DEMOD_FSK: // Set realtime AWID demodulation
 			CmdAWIDdemodFSK(c->arg[0], 0, 0, 1);
 			break;
 		case CMD_VIKING_CLONE_TAG:
 			CopyVikingtoT55xx(c->arg[0], c->arg[1], c->arg[2]);
+			break;
+		case CMD_COTAG:
+			Cotag(c->arg[0]);
 			break;
 #endif
 
@@ -1015,6 +1040,18 @@ void UsbPacketReceived(uint8_t *packet, int len)
 			break;
 		case CMD_READER_HITAG: // Reader for Hitag tags, args = type and function
 			ReaderHitag((hitag_function)c->arg[0],(hitag_data*)c->d.asBytes);
+			break;
+		case CMD_SIMULATE_HITAG_S:// Simulate Hitag s tag, args = memory content
+			SimulateHitagSTag((bool)c->arg[0],(byte_t*)c->d.asBytes);
+			break;
+		case CMD_TEST_HITAGS_TRACES:// Tests every challenge within the given file
+			check_challenges((bool)c->arg[0],(byte_t*)c->d.asBytes);
+			break;
+		case CMD_READ_HITAG_S://Reader for only Hitag S tags, args = key or challenge
+			ReadHitagS((hitag_function)c->arg[0],(hitag_data*)c->d.asBytes);
+			break;
+		case CMD_WR_HITAG_S://writer for Hitag tags args=data to write,page and key or challenge
+			WritePageHitagS((hitag_function)c->arg[0],(hitag_data*)c->d.asBytes,c->arg[2]);
 			break;
 #endif
 
@@ -1218,7 +1255,7 @@ void UsbPacketReceived(uint8_t *packet, int len)
 			break;
 
 		case CMD_MEASURE_ANTENNA_TUNING:
-			MeasureAntennaTuning();
+			MeasureAntennaTuning(c->arg[0]);
 			break;
 
 		case CMD_MEASURE_ANTENNA_TUNING_HF:

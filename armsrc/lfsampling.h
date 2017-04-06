@@ -2,6 +2,13 @@
 #define LFSAMPLING_H
 
 /**
+* acquisition of Cotag LF signal. Similar to other LF,  since the Cotag has such long datarate RF/384
+* and is Manchester?,  we directly gather the manchester data into bigbuff
+**/
+void doCotagAcquisition(size_t sample_size);
+uint32_t doCotagAcquisitionManchester(void);
+
+/**
 * acquisition of T55x7 LF signal. Similart to other LF, but adjusted with @marshmellows thresholds
 * the data is collected in BigBuf.
 **/
@@ -17,8 +24,10 @@ uint32_t SampleLF(bool silent);
 * Initializes the FPGA for snoop-mode (field off), and acquires the samples.
 * @return number of bits sampled
 **/
-
 uint32_t SnoopLF();
+
+// adds sample size to default options
+uint32_t DoPartialAcquisition(int trigger_threshold, bool silent, int sample_size);
 
 /**
  * @brief Does sample acquisition, ignoring the config values set in the sample_config.

@@ -101,6 +101,7 @@ typedef struct{
 #define CMD_AWID_DEMOD_FSK                                                0x0221
 #define CMD_VIKING_CLONE_TAG                                              0x0223
 #define CMD_T55XX_WAKEUP                                                  0x0224
+#define CMD_COTAG                                                         0x0225
 
 
 /* CMD_SET_ADC_MUX: ext1 is 0 for lopkd, 1 for loraw, 2 for hipkd, 3 for hiraw */
@@ -123,6 +124,13 @@ typedef struct{
 #define CMD_SNOOP_HITAG                                                   0x0370
 #define CMD_SIMULATE_HITAG                                                0x0371
 #define CMD_READER_HITAG                                                  0x0372
+
+#define CMD_SIMULATE_HITAG_S                                              0x0368
+#define CMD_TEST_HITAGS_TRACES						  0x0367
+#define CMD_READ_HITAG_S						  0x0373
+#define CMD_WR_HITAG_S							  0x0375
+#define CMD_EMU_HITAG_S						          0x0376
+
 
 #define CMD_SIMULATE_TAG_ISO_14443B                                       0x0381
 #define CMD_SNOOP_ISO_14443B                                              0x0382
@@ -205,10 +213,12 @@ typedef struct{
 
 
 //Mifare simulation flags
-#define FLAG_INTERACTIVE 0x01
-#define FLAG_4B_UID_IN_DATA 0x02
-#define FLAG_7B_UID_IN_DATA 0x04
-#define FLAG_NR_AR_ATTACK 0x08
+#define FLAG_INTERACTIVE      0x01
+#define FLAG_4B_UID_IN_DATA   0x02
+#define FLAG_7B_UID_IN_DATA   0x04
+#define FLAG_10B_UID_IN_DATA  0x08
+#define FLAG_NR_AR_ATTACK     0x10
+#define FLAG_RANDOM_NONCE     0x20
 
 
 //Iclass reader flags
@@ -220,6 +230,11 @@ typedef struct{
 #define FLAG_ICLASS_READER_ONE_TRY      0x20
 #define FLAG_ICLASS_READER_CEDITKEY     0x40
 
+
+//hw tune args
+#define FLAG_TUNE_LF   1
+#define FLAG_TUNE_HF   2
+#define FLAG_TUNE_ALL  3
 
 
 // CMD_DEVICE_INFO response packet has flags in arg[0], flag definitions:

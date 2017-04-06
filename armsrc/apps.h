@@ -15,7 +15,9 @@
 #include <stdint.h>
 #include <stddef.h>
 #include "common.h"
+#include "usb_cmd.h"
 #include "hitag2.h"
+#include "hitagS.h"
 #include "mifare.h"
 #include "../common/crc32.h"
 #include "BigBuf.h"
@@ -87,7 +89,8 @@ void T55xxWakeUp(uint32_t Pwd);
 void TurnReadLFOn();
 //void T55xxReadTrace(void);
 void EM4xReadWord(uint8_t Address, uint32_t Pwd, uint8_t PwdMode);
-void EM4xWriteWord(uint32_t Data, uint8_t Address, uint32_t Pwd, uint8_t PwdMode);
+void EM4xWriteWord(uint32_t flag, uint32_t Data, uint32_t Pwd);
+void Cotag(uint32_t arg0);
 
 /// iso14443.h
 void SimulateIso14443bTag(void);
@@ -178,6 +181,13 @@ void iClass_ReadCheck(uint8_t	blockNo, uint8_t keyType);
 void SnoopHitag(uint32_t type);
 void SimulateHitagTag(bool tag_mem_supplied, byte_t* data);
 void ReaderHitag(hitag_function htf, hitag_data* htd);
+
+//hitagS.h
+void SimulateHitagSTag(bool tag_mem_supplied, byte_t* data);
+void ReadHitagS(hitag_function htf, hitag_data* htd);
+void WritePageHitagS(hitag_function htf, hitag_data* htd,int page);
+void check_challenges(bool file_given, byte_t* data);
+
 
 // cmd.h
 bool cmd_receive(UsbCommand* cmd);

@@ -30,6 +30,9 @@ RESOURCES:
        irc.freenode.org #proxmark3
        -or-
        http://webchat.freenode.net/?channels=#proxmark3
+       
+   * The Homebrew formula repository
+      https://github.com/Proxmark/homebrew-proxmark3
    
 DEVELOPMENT:
 
@@ -45,6 +48,9 @@ following locations:
 
    * http://proxmark3.com/
    * http://www.xfpga.com/
+   * http://radiowar.taobao.com/
+   * http://www.elechouse.com/
+   * https://lab401.com/
 
 Most of the ultra-low-volume contract assemblers could put
 something like this together with a reasonable yield. A run of around

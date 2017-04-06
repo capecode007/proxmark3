@@ -87,6 +87,7 @@ typedef struct {
 #define CMD_AWID_DEMOD_FSK                                                0x0221
 #define CMD_VIKING_CLONE_TAG                                              0x0223
 #define CMD_T55XX_WAKEUP                                                  0x0224
+#define CMD_COTAG                                                         0x0225
 
 /* CMD_SET_ADC_MUX: ext1 is 0 for lopkd, 1 for loraw, 2 for hipkd, 3 for hiraw */
 
@@ -106,6 +107,12 @@ typedef struct {
 #define CMD_SNOOP_HITAG                                                   0x0370
 #define CMD_SIMULATE_HITAG                                                0x0371
 #define CMD_READER_HITAG                                                  0x0372
+
+#define CMD_SIMULATE_HITAG_S                                              0x0368
+#define CMD_TEST_HITAGS_TRACES						  0x0367
+#define CMD_READ_HITAG_S						  0x0373
+#define CMD_WR_HITAG_S							  0x0375
+#define CMD_EMU_HITAG_S						          0x0376
 
 #define CMD_SIMULATE_TAG_ISO_14443B                                       0x0381
 #define CMD_SNOOP_ISO_14443B                                              0x0382
